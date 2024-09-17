@@ -1,0 +1,53 @@
+<html>
+
+<head>
+  <style media="screen">
+    body {
+      background-color: #000;
+      color: #fff;
+    }
+
+    * {
+      font-size: 24px;
+    }
+  </style>
+</head>
+
+<body>
+  <span id=counter></span>
+  <input type='button' value='-1min' onclick='minustime(60);return false;' />
+  <input type='button' value='GO NOW' onclick='gonow();return false;' />
+  <script type="text/javascript">
+    function countdown() {
+      var counter = document.getElementById('counter');
+      var timeleft = parseInt(counter.innerText) - 1;
+      if (timeleft > 0) {
+        counter.innerText = timeleft;
+        setTimeout(countdown, 1000);
+      }
+      else {
+        gonow();
+      }
+    }
+
+
+    function minustime(timetominus) {
+      var counter = document.getElementById('counter');
+      var timeleft = parseInt(counter.innerText) - timetominus;
+      if (timeleft > 0) {
+        counter.innerText = timeleft;
+      }
+      else {
+        counter.innerText = 1;
+      }
+    }
+    function gonow() {
+      window.location.href = 'http://freebitco.in/?op=home';
+    }
+    var counter = document.getElementById('counter');
+    counter.innerText = 60 * 50;
+    setTimeout(countdown, 1000);
+  </script>
+</body>
+
+</html>
