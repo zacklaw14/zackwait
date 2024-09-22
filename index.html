@@ -21,8 +21,8 @@
   <input type='button' value='GO NOW' onclick='gonow();return false;' />
   </p>
   <p>
-  <input type='button' value='15 min' onclick='totime(15 * 60000);return false;' />
-  <input type='button' value='30 min' onclick='totime(30 * 60000);return false;' />  
+  <input type='button' value='15 min' onclick='totime(15 * 60);return false;' />
+  <input type='button' value='30 min' onclick='totime(30 * 60);return false;' />  
   </p>
   <script type="text/javascript">
     function countdown() {
@@ -64,7 +64,7 @@
       window.location.href = 'http://freebitco.in/?op=home';
     }
     var counter = document.getElementById('counter');
-    counter.innerText = 60 * 50;
+    counter.innerText = 8 * 60;
     setTimeout(countdown, 1000);
   </script>
 </body>
