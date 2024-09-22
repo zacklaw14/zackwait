@@ -1,6 +1,7 @@
 <html>
 
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style media="screen">
     body {
       background-color: #000;
@@ -14,9 +15,15 @@
 </head>
 
 <body>
+  <p>
   <span id=counter></span>
   <input type='button' value='-1min' onclick='minustime(60);return false;' />
   <input type='button' value='GO NOW' onclick='gonow();return false;' />
+  </p>
+  <p>
+  <input type='button' value='15 min' onclick='totime(15 * 60000);return false;' />
+  <input type='button' value='30 min' onclick='totime(30 * 60000);return false;' />  
+  </p>
   <script type="text/javascript">
     function countdown() {
       var counter = document.getElementById('counter');
@@ -41,6 +48,18 @@
         counter.innerText = 1;
       }
     }
+
+    function addtime(delta) {
+      var counter = document.getElementById('counter');
+      var timeleft = parseInt(counter.innerText) + delta;
+      counter.innerText = Math.max(1, timeleft);
+    }
+
+    function totime(newtime) {
+      var counter = document.getElementById('counter');
+      counter.innerText = newtime;
+    }
+    
     function gonow() {
       window.location.href = 'http://freebitco.in/?op=home';
     }
