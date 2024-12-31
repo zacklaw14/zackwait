@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="1" tvg-name="湖南卫视高清" tvg-logo="" group-title="",湖南卫视高清
+http://itv.ahau.edu.cn/hls/hunanhd.m3u8
+#EXTINF:-1 tvg-id="2" tvg-name="东方卫视高清" tvg-logo="" group-title="",东方卫视高清
+http://itv.ahau.edu.cn/hls/dfhd.m3u8
