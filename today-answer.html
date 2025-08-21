@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MTR Mobile 今日答案抓取</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'PingFang HK', 'Microsoft JhengHei', Arial, sans-serif; margin: 2rem; line-height: 1.6; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 1.25rem; max-width: 680px; }
+    h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+    .muted { color: #666; font-size: .925rem; }
+    .answer { font-size: 1.5rem; margin: .75rem 0; font-weight: 700; }
+    .error { color: #b00020; }
+    button { background: #0a7cff; color: #fff; border: 0; border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>MTR Mobile 今日答案</h1>
+    <div class="muted">來源：<a href="https://www.jetsotoday.com/mtr-mobile-202508/" target="_blank" rel="noopener">jetsotoday.com/mtr-mobile-202508</a></div>
+
+    <div id="status" class="muted" style="margin-top:.75rem;">正在載入…</div>
+    <div id="answer" class="answer"></div>
+    <div id="error" class="error"></div>
+
+    <div style="margin-top:1rem; display:flex; gap:.5rem; align-items:center;">
+      <button id="reloadBtn">重新抓取</button>
+      <label style="display:flex; gap:.4rem; align-items:center; font-size:.95rem;">
+        <input id="showRaw" type="checkbox" /> 顯示原始文字
+      </label>
+    </div>
+
+    <pre id="raw" class="muted" style="display:none; margin-top:1rem;"></pre>
+  </div>
+
+  <script>
+    const TARGET_URL = 'https://www.jetsotoday.com/mtr-mobile-202508/';
+    // Use a CORS-friendly readable proxy. It returns readable page text (no HTML), which is easier to parse client-side.
+    const PROXY_URL = 'https://r.jina.ai/http://www.jetsotoday.com/mtr-mobile-202508/';
+
+    const statusEl = document.getElementById('status');
+    const answerEl = document.getElementById('answer');
+    const errorEl = document.getElementById('error');
+    const rawEl = document.getElementById('raw');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const showRaw = document.getElementById('showRaw');
+
+    reloadBtn.addEventListener('click', () => {
+      loadAnswer(true);
+    });
+    showRaw.addEventListener('change', () => {
+      rawEl.style.display = showRaw.checked ? 'block' : 'none';
+    });
+
+    function setLoading(isLoading) {
+      reloadBtn.disabled = isLoading;
+      statusEl.textContent = isLoading ? '正在載入…' : '';
+    }
+
+    function getChineseDatePatterns(date) {
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      const m = String(month);
+      const d = String(day);
+      const mm = m.padStart(2, '0');
+      const dd = d.padStart(2, '0');
+      return [
+        `${m}月${d}日`,
+        `${mm}月${dd}日`,
+        `${m} 月 ${d} 日`,
+        `${mm} 月 ${dd} 日`,
+      ];
+    }
+
+    function normalizeAnswer(ans) {
+      if (!ans) return '';
+      let out = ans.trim();
+      // Strip common trailing punctuation and brackets
+      out = out.replace(/[，,。；;、）\]\】>\s]+$/g, '');
+      // Remove leading brackets or quotes
+      out = out.replace(/^[（\[\【<\s"'“”‘’]+/g, '');
+      return out.trim();
+    }
+
+    function extractAnswerFromText(text) {
+      if (!text) return '';
+
+      // 1) Direct "今日答案" style (support colon or Chinese brackets)
+      const keywordPatterns = [
+        /今[日天]\s*答\s*案\s*[:：\-]\s*([^\n，,。；;、（）()【】\[\]]{1,30})/i,
+        /今[日天]\s*答\s*案\s*（\s*([A-Da-d])\s*）/i,
+        /答\s*案\s*[:：\-]\s*([^\n，,。；;、（）()【】\[\]]{1,30})\s*(?:（?今[日天]）?)?/i,
+      ];
+      for (const re of keywordPatterns) {
+        const m = text.match(re);
+        if (m && m[1]) {
+          return normalizeAnswer(m[1]);
+        }
+      }
+
+      // 2) Find by today's date near "答案"; allow formats like "答案（A）」or "答案: A"
+      const today = new Date();
+      const dateVariants = getChineseDatePatterns(today);
+      for (const variant of dateVariants) {
+        const escaped = variant.replace(/([.*+?^${}()|\[\]\\])/g, r => `\\${r}`);
+        const re = new RegExp(`${escaped}[^\n]{0,80}?答\s*案\s*(?:[:：\-]\s*([A-Da-d]|[^\n，,。；;、（）()【】\[\]]{1,30})|（\s*([A-Da-d])\s*）)`, 'i');
+        const m = text.match(re);
+        if (m) {
+          const candidate = m[1] || m[2];
+          if (candidate) return normalizeAnswer(candidate);
+        }
+      }
+
+      // 3) Fallbacks: first occurrence anywhere
+      const fallbackParen = text.match(/答\s*案\s*（\s*([A-Da-d])\s*）/i);
+      if (fallbackParen && fallbackParen[1]) return normalizeAnswer(fallbackParen[1]);
+
+      const fallbackColon = text.match(/答\s*案\s*[:：\-]\s*([^\n，,。；;、（）()【】\[\]]{1,30})/i);
+      if (fallbackColon && fallbackColon[1]) return normalizeAnswer(fallbackColon[1]);
+
+      return '';
+    }
+
+    async function fetchReadableText() {
+      const resp = await fetch(PROXY_URL, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'Accept': 'text/plain' }
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return await resp.text();
+    }
+
+    async function loadAnswer(isManual = false) {
+      setLoading(true);
+      errorEl.textContent = '';
+      answerEl.textContent = '';
+      if (!isManual) rawEl.style.display = 'none';
+
+      try {
+        const text = await fetchReadableText();
+        rawEl.textContent = text;
+        const ans = extractAnswerFromText(text);
+        if (ans) {
+          answerEl.textContent = ans;
+          statusEl.textContent = '已更新';
+        } else {
+          statusEl.textContent = '';
+          errorEl.textContent = '未找到今日答案（可能頁面樣式變更或尚未更新）。';
+        }
+      } catch (err) {
+        statusEl.textContent = '';
+        errorEl.textContent = `抓取失敗：${err && err.message ? err.message : err}`;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Auto-load on first visit
+    loadAnswer(false);
+  </script>
+</body>
+</html>
